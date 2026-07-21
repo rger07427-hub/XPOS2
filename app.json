@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "XPOS",
+    "slug": "pos-app",
+    "version": "1.1.0",
+    "scheme": "posapp",
+    "platforms": [
+      "android"
+    ],
+    "icon": "./assets/icon.png",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#1E98A8"
+      },
+      "package": "com.posapp.epos",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_CONNECT"
+      ]
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8F9FA"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6124f57e-d51a-47b8-bcae-c3a84e9b78ac"
+      }
+    }
+  }
+}
