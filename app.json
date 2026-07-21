@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "XPOS",
-    "slug": "pos-app",
+    "name": "XPOS2",
+    "slug": "pos-app2",
     "version": "1.1.0",
     "scheme": "posapp",
     "platforms": [
@@ -13,7 +13,7 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#1E98A8"
       },
-      "package": "com.posapp.epos",
+      "package": "com.posapp.epos.cabang2",
       "permissions": [
         "BLUETOOTH",
         "BLUETOOTH_ADMIN",
@@ -27,12 +27,6 @@
     },
     "plugins": [
       "expo-router"
-    ],
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "6124f57e-d51a-47b8-bcae-c3a84e9b78ac"
-      }
-    }
+    ]
   }
 }
