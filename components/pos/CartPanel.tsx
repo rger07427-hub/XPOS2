@@ -42,6 +42,7 @@ export default function CartPanel({ onCheckout }: Props) {
             onIncrease={() => addItem(item.product)}
             onDecrease={() => updateQty(item.product.id, item.quantity - 1)}
             onRemove={() => removeItem(item.product.id)}
+            onSetQty={(qty) => updateQty(item.product.id, qty)}
           />
         ))}
       </ScrollView>

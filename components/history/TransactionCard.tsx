@@ -9,8 +9,8 @@ interface Props {
   onPress: (transaction: Transaction) => void;
 }
 
-const methodLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer' };
-const methodBadge: Record<string, 'success' | 'info' | 'warning'> = { cash: 'success', qris: 'info', transfer: 'warning' };
+const methodLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', cod: 'COD' };
+const methodBadge: Record<string, 'success' | 'info' | 'warning' | 'default'> = { cash: 'success', qris: 'info', transfer: 'warning', cod: 'default' };
 
 export default function TransactionCard({ transaction, onPress }: Props) {
   const date = new Date(transaction.created_at);

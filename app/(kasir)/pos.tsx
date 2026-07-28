@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
@@ -13,6 +14,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useProductStore } from '../../store/useProductStore';
 import { useCartStore } from '../../store/useCartStore';
 import { Colors } from '../../constants/colors';
+import { Radius, Spacing } from '../../constants/theme';
+import { Category } from '../../types';
 import ProductGrid from '../../components/pos/ProductGrid';
 import CartPanel from '../../components/pos/CartPanel';
 import PaymentModal from '../../components/pos/PaymentModal';
@@ -25,18 +28,26 @@ export default function CashierPOS() {
   const [search, setSearch] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'cart'>('products');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
+    supabase.from('categories').select('*').order('name').then(({ data }) => {
+      if (data) setCategories(data);
+    });
   }, []);
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = products.filter((p) => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchCategory = !selectedCategory || p.category_id === selectedCategory;
+    return matchSearch && matchCategory;
+  });
 
   const handleCheckout = async (
-    method: 'cash' | 'qris' | 'transfer',
-    paid: number
+    method: 'cash' | 'qris' | 'transfer' | 'cod',
+    paid: number,
+    note: string
   ) => {
     if (!profile) return;
     const total = getTotal();
@@ -50,6 +61,7 @@ export default function CashierPOS() {
           paid_amount: paid,
           change_amount: method === 'cash' ? paid - total : 0,
           payment_method: method,
+          note: note || null,
           status: 'completed',
         })
         .select()
@@ -155,6 +167,31 @@ export default function CashierPOS() {
             value={search}
             onChangeText={setSearch}
           />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRow}
+          >
+            <TouchableOpacity
+              style={[styles.categoryChip, !selectedCategory && styles.categoryChipActive]}
+              onPress={() => setSelectedCategory(null)}
+            >
+              <Text style={[styles.categoryText, !selectedCategory && styles.categoryTextActive]}>
+                Semua
+              </Text>
+            </TouchableOpacity>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.categoryChip, selectedCategory === cat.id && styles.categoryChipActive]}
+                onPress={() => setSelectedCategory(cat.id)}
+              >
+                <Text style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           <ProductGrid
             products={filtered}
             onAdd={(product) => {
@@ -231,4 +268,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.gray[800],
   },
+  categoryRow: { paddingHorizontal: Spacing.sm, gap: 8, paddingBottom: 6 },
+  categoryChip: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.chip,
+    backgroundColor: Colors.gray[100], borderWidth: 1.5, borderColor: Colors.gray[200],
+  },
+  categoryChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  categoryText: { fontFamily: 'Poppins_500Medium', fontSize: 13, color: Colors.textSecondary },
+  categoryTextActive: { color: Colors.white, fontFamily: 'Poppins_700Bold' },
 });

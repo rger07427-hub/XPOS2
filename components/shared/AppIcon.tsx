@@ -3,7 +3,7 @@ import {
   IconChartBar, IconUser, IconCalendar, IconTag, IconUsers,
   IconPrinter, IconBuildingStore, IconMenu2, IconCash,
   IconQrcode, IconBuildingBank, IconPencil, IconTrash,
-  IconX, IconChevronDown, IconCheck,
+  IconX, IconChevronDown, IconCheck, IconTruckDelivery, IconSettings,
 } from '@tabler/icons-react-native';
 
 export const ICONS = {
@@ -22,11 +22,13 @@ export const ICONS = {
   cash: IconCash,
   qris: IconQrcode,
   transfer: IconBuildingBank,
+  cod: IconTruckDelivery,
   edit: IconPencil,
   hapus: IconTrash,
   tutup: IconX,
   chevronDown: IconChevronDown,
   check: IconCheck,
+  settings: IconSettings,
 };
 
 export type IconName = keyof typeof ICONS;

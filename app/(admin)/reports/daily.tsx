@@ -24,6 +24,7 @@ interface DailySummary {
   cashTotal: number;
   qrisTotal: number;
   transferTotal: number;
+  codTotal: number;
   topProducts: { name: string; qty: number; total: number }[];
   hourlyData: { hour: string; total: number; count: number }[];
 }
@@ -80,6 +81,9 @@ export default function DailyReportScreen() {
     const transferTotal = transactions
       .filter(t => t.payment_method === 'transfer')
       .reduce((s, t) => s + t.total, 0);
+    const codTotal = transactions
+      .filter(t => t.payment_method === 'cod')
+      .reduce((s, t) => s + t.total, 0);
 
     // Top produk
     const productMap: Record<string, { name: string; qty: number; total: number }> = {};
@@ -120,6 +124,7 @@ export default function DailyReportScreen() {
       cashTotal,
       qrisTotal,
       transferTotal,
+      codTotal,
       topProducts,
       hourlyData,
     });
@@ -244,6 +249,12 @@ export default function DailyReportScreen() {
               <Badge label="Transfer" type="warning" />
               <Text style={styles.methodAmount}>
                 Rp {summary?.transferTotal.toLocaleString('id-ID') ?? '0'}
+              </Text>
+            </View>
+            <View style={styles.methodCard}>
+              <Badge label="COD" type="default" />
+              <Text style={styles.methodAmount}>
+                Rp {summary?.codTotal.toLocaleString('id-ID') ?? '0'}
               </Text>
             </View>
           </View>

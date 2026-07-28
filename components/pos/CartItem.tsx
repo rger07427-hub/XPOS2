@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { CartItem as CartItemType } from '../../types';
 import { Colors } from '../../constants/colors';
 import { Radius, Spacing } from '../../constants/theme';
@@ -8,9 +9,28 @@ interface Props {
   onIncrease: () => void;
   onDecrease: () => void;
   onRemove: () => void;
+  onSetQty: (qty: number) => void;
 }
 
-export default function CartItemRow({ item, onIncrease, onDecrease, onRemove }: Props) {
+export default function CartItemRow({ item, onIncrease, onDecrease, onRemove, onSetQty }: Props) {
+  const [qtyText, setQtyText] = useState(String(item.quantity));
+
+  useEffect(() => {
+    setQtyText(String(item.quantity));
+  }, [item.quantity]);
+
+  const commitQty = () => {
+    const num = parseInt(qtyText, 10);
+    if (isNaN(num) || num <= 0) {
+      onRemove();
+      return;
+    }
+    const maxStock = item.product.stock ?? 0;
+    const finalQty = maxStock > 0 ? Math.min(num, maxStock) : num;
+    onSetQty(finalQty);
+    setQtyText(String(finalQty));
+  };
+
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={onRemove} style={styles.removeBtn}>
@@ -24,7 +44,15 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove }: 
         <TouchableOpacity style={styles.qtyBtn} onPress={onDecrease}>
           <Text style={styles.qtyBtnText}>−</Text>
         </TouchableOpacity>
-        <Text style={styles.qty}>{item.quantity}</Text>
+        <TextInput
+          style={styles.qtyInput}
+          value={qtyText}
+          onChangeText={setQtyText}
+          onBlur={commitQty}
+          onSubmitEditing={commitQty}
+          keyboardType="number-pad"
+          selectTextOnFocus
+        />
         <TouchableOpacity style={styles.qtyBtn} onPress={onIncrease}>
           <Text style={styles.qtyBtnText}>+</Text>
         </TouchableOpacity>
@@ -38,13 +66,12 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove }: 
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: Colors.gray[100], gap: Spacing.sm,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.gray[100], gap: Spacing.sm,
   },
   removeBtn: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: Colors.softRed, alignItems: 'center', justifyContent: 'center',
+    width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.softRed,
+    alignItems: 'center', justifyContent: 'center',
   },
   removeText: { fontSize: 11, color: Colors.danger, fontFamily: 'Poppins_700Bold' },
   info: { flex: 1 },
@@ -52,10 +79,14 @@ const styles = StyleSheet.create({
   price: { fontFamily: 'Poppins_400Regular', fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
   qtyControl: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   qtyBtn: {
-    width: 28, height: 28, borderRadius: Radius.button,
-    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 28, height: 28, borderRadius: Radius.button, backgroundColor: Colors.primary,
+    alignItems: 'center', justifyContent: 'center',
   },
   qtyBtnText: { fontSize: 16, color: Colors.white, fontFamily: 'Poppins_700Bold', lineHeight: 20 },
-  qty: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: Colors.textPrimary, minWidth: 24, textAlign: 'center' },
+  qtyInput: {
+    fontFamily: 'Poppins_700Bold', fontSize: 15, color: Colors.textPrimary,
+    minWidth: 36, textAlign: 'center', paddingVertical: 2,
+    borderBottomWidth: 1, borderBottomColor: Colors.gray[300],
+  },
   subtotal: { fontFamily: 'Poppins_700Bold', fontSize: 13, color: Colors.primary, minWidth: 80, textAlign: 'right' },
 });

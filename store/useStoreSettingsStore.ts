@@ -5,6 +5,7 @@ interface StoreSettings {
   name: string;
   address: string;
   phone: string;
+  footnote?: string;
 }
 
 interface StoreSettingsState {
@@ -15,7 +16,7 @@ interface StoreSettingsState {
 }
 
 export const useStoreSettingsStore = create<StoreSettingsState>((set, get) => ({
-  settings: { name: 'Toko Saya', address: '', phone: '' },
+  settings: { name: 'Toko Saya', address: '', phone: '', footnote: '' },
   loading: false,
 
   fetchSettings: async () => {
@@ -32,6 +33,7 @@ export const useStoreSettingsStore = create<StoreSettingsState>((set, get) => ({
           name: data.name,
           address: data.address ?? '',
           phone: data.phone ?? '',
+          footnote: data.footnote ?? '',
         },
       });
     }
@@ -41,7 +43,7 @@ export const useStoreSettingsStore = create<StoreSettingsState>((set, get) => ({
   updateSettings: async (s) => {
     const { error } = await supabase
       .from('store_settings')
-      .update({ name: s.name, address: s.address, phone: s.phone })
+      .update({ name: s.name, address: s.address, phone: s.phone, footnote: s.footnote })
       .eq('id', 1);
 
     if (error) return { success: false, message: error.message };

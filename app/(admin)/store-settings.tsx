@@ -22,6 +22,7 @@ export default function StoreSettingsScreen() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [footnote, setFootnote] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
@@ -36,6 +37,7 @@ export default function StoreSettingsScreen() {
     setName(settings.name);
     setAddress(settings.address);
     setPhone(settings.phone);
+    setFootnote(settings.footnote ?? '');
   }, [settings]);
 
   const handleSave = async () => {
@@ -48,6 +50,7 @@ export default function StoreSettingsScreen() {
       name: name.trim(),
       address: address.trim(),
       phone: phone.trim(),
+      footnote: footnote.trim(),
     });
     setLoading(false);
     if (result.success) {
@@ -116,6 +119,16 @@ export default function StoreSettingsScreen() {
             placeholder="0812xxxxxxx"
             placeholderTextColor={Colors.gray[400]}
             keyboardType="phone-pad"
+          />
+
+          <Text style={styles.label}>Catatan Kaki Struk (Footnote)</Text>
+          <TextInput
+            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+            value={footnote}
+            onChangeText={setFootnote}
+            placeholder="Pesan di bagian bawah struk..."
+            placeholderTextColor={Colors.gray[400]}
+            multiline
           />
 
           <TouchableOpacity

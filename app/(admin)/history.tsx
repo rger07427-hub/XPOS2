@@ -27,12 +27,14 @@ const methodLabel: Record<string, string> = {
   cash: 'Tunai',
   qris: 'QRIS',
   transfer: 'Transfer',
+  cod: 'COD',
 };
 
-const methodBadge: Record<string, 'success' | 'info' | 'warning'> = {
+const methodBadge: Record<string, 'success' | 'info' | 'warning' | 'default'> = {
   cash: 'success',
   qris: 'info',
   transfer: 'warning',
+  cod: 'default',
 };
 
 export default function HistoryScreen() {

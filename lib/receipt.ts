@@ -59,18 +59,44 @@ export function buildReceiptText(
 
   const methodLabel =
     transaction.payment_method === 'cash' ? 'Tunai' :
-    transaction.payment_method === 'qris' ? 'QRIS' : 'Transfer';
+    transaction.payment_method === 'qris' ? 'QRIS' :
+    transaction.payment_method === 'cod' ? 'COD' : 'Transfer';
   text += twoColumns('Metode', methodLabel);
 
-  if (transaction.payment_method === 'cash') {
-    text += twoColumns('Dibayar', formatRupiah(transaction.paid_amount ?? 0));
-    text += twoColumns('Kembali', formatRupiah(transaction.change_amount ?? 0));
+  const note = (transaction as any).note?.trim();
+  if (note) {
+    text += line('-');
+    text += 'Catatan:\n';
+    const words = note.split(' ');
+    let currentLine = '';
+    words.forEach((word: string) => {
+      if ((currentLine + ' ' + word).trim().length <= LINE_WIDTH) {
+        currentLine = (currentLine + ' ' + word).trim();
+      } else {
+        text += currentLine + '\n';
+        currentLine = word;
+      }
+    });
+    if (currentLine) text += currentLine + '\n';
   }
 
   text += line('=');
-  text += center('Terima Kasih') + '\n';
-  text += center('Barang yang sudah dibeli') + '\n';
-  text += center('tidak dapat dikembalikan') + '\n';
+
+  const footnote = storeInfo.footnote?.trim();
+  if (footnote) {
+    const words = footnote.split(' ');
+    let currentLine = '';
+    words.forEach((word) => {
+      if ((currentLine + ' ' + word).trim().length <= LINE_WIDTH) {
+        currentLine = (currentLine + ' ' + word).trim();
+      } else {
+        text += center(currentLine) + '\n';
+        currentLine = word;
+      }
+    });
+    if (currentLine) text += center(currentLine) + '\n';
+  }
+
   text += '\n\n\n';
 
   return text;
