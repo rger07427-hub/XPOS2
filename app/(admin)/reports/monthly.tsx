@@ -15,6 +15,7 @@ import { supabase } from '../../../lib/supabase';
 import { Colors } from '../../../constants/colors';
 import { Radius, Shadow, Spacing, FontSize } from '../../../constants/theme';
 import { buildMonthlyReportText, printPlainText } from '../../../lib/receipt';
+import { useRealtimeTransactions } from '../../../lib/useRealtimeTransactions';
 
 interface MonthlySummary {
   totalRevenue: number;
@@ -55,8 +56,9 @@ export default function MonthlyReportScreen() {
     const { data: transactions } = await supabase
       .from('transactions')
       .select('*, items:transaction_items(*)')
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
+      .eq('status', 'completed')
+      .gte('completed_at', startDate)
+      .lte('completed_at', endDate);
 
     if (!transactions) {
       setLoading(false);
@@ -67,57 +69,33 @@ export default function MonthlyReportScreen() {
     const totalRevenue = transactions.reduce((s, t) => s + t.total, 0);
     const totalTransactions = transactions.length;
 
-    // Data per hari
     const dayMap: Record<string, { total: number; count: number }> = {};
     transactions.forEach(t => {
-      const day = t.created_at.split('T')[0];
+      const day = (t.completed_at ?? t.created_at).split('T')[0];
       if (!dayMap[day]) dayMap[day] = { total: 0, count: 0 };
       dayMap[day].total += t.total;
       dayMap[day].count += 1;
     });
 
-    const dailyData = Object.entries(dayMap)
-      .map(([date, data]) => ({ date, ...data }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const dailyData = Object.entries(dayMap).map(([date, data]) => ({ date, ...data })).sort((a, b) => a.date.localeCompare(b.date));
 
     const daysWithData = dailyData.length;
-    const avgPerDay = daysWithData > 0
-      ? Math.round(totalRevenue / daysWithData)
-      : 0;
+    const avgPerDay = daysWithData > 0 ? Math.round(totalRevenue / daysWithData) : 0;
+    const bestDay = dailyData.length > 0 ? dailyData.reduce((best, d) => d.total > best.total ? d : best, dailyData[0]) : null;
 
-    const bestDay = dailyData.length > 0
-      ? dailyData.reduce((best, d) =>
-          d.total > best.total ? d : best, dailyData[0])
-      : null;
-
-    // Top produk bulan ini
     const productMap: Record<string, { name: string; qty: number; total: number }> = {};
     transactions.forEach(t => {
       t.items?.forEach((item: any) => {
         if (!productMap[item.product_name]) {
-          productMap[item.product_name] = {
-            name: item.product_name,
-            qty: 0,
-            total: 0,
-          };
+          productMap[item.product_name] = { name: item.product_name, qty: 0, total: 0 };
         }
         productMap[item.product_name].qty += item.quantity;
-        productMap[item.product_name].total +=
-          item.price_at_sale * item.quantity;
+        productMap[item.product_name].total += item.price_at_sale * item.quantity;
       });
     });
-    const topProducts = Object.values(productMap)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+    const topProducts = Object.values(productMap).sort((a, b) => b.total - a.total).slice(0, 5);
 
-    setSummary({
-      totalRevenue,
-      totalTransactions,
-      avgPerDay,
-      bestDay,
-      topProducts,
-      dailyData,
-    });
+    setSummary({ totalRevenue, totalTransactions, avgPerDay, bestDay, topProducts, dailyData });
     setLoading(false);
     setRefreshing(false);
   }, [year, month]);
@@ -125,6 +103,10 @@ export default function MonthlyReportScreen() {
   useEffect(() => {
     fetchMonthlyReport();
   }, [fetchMonthlyReport]);
+
+  useRealtimeTransactions(() => {
+    fetchMonthlyReport();
+  });
 
   const changeMonth = (delta: number) => {
     let newMonth = month + delta;

@@ -21,6 +21,7 @@ const DRAWER_WIDTH = Math.min(300, Dimensions.get('window').width * 0.8);
 const MENU_ITEMS: { icon: IconName; label: string; path: string }[] = [
   { icon: 'dashboard', label: 'Dashboard', path: '/(admin)/dashboard' },
   { icon: 'riwayat', label: 'Riwayat', path: '/(admin)/history' },
+  { icon: 'riwayat', label: 'Draft DP', path: '/(admin)/dp-drafts' },
   { icon: 'pos', label: 'POS', path: '/(admin)/pos' },
   { icon: 'rekapBulanan', label: 'Rekap Bulanan', path: '/(admin)/reports/monthly' },
   { icon: 'kategori', label: 'Kelola Kategori', path: '/(admin)/categories' },

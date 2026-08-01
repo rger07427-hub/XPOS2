@@ -44,10 +44,10 @@ export default function KasirLayout() {
         }}
       />
       <Tabs.Screen
-        name="printer-settings"
+        name="dp-drafts"
         options={{
-          title: 'Printer',
-          tabBarIcon: ({ focused }) => <TabIcon name="printer" focused={focused} />,
+          title: 'Draft DP',
+          tabBarIcon: ({ focused }) => <TabIcon name="riwayat" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -57,6 +57,7 @@ export default function KasirLayout() {
           tabBarIcon: ({ focused }) => <TabIcon name="profil" focused={focused} />,
         }}
       />
+      <Tabs.Screen name="printer-settings" options={{ href: null }} />
     </Tabs>
   );
 }

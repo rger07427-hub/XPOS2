@@ -19,7 +19,7 @@ import { Category } from '../../types';
 import ProductGrid from '../../components/pos/ProductGrid';
 import CartPanel from '../../components/pos/CartPanel';
 import PaymentModal from '../../components/pos/PaymentModal';
-import { printTransactionReceipt } from '../../lib/receipt';
+import { printTransactionReceipt, printDpSlip } from '../../lib/receipt';
 
 export default function AdminPOS() {
   const { profile } = useAuthStore();
@@ -45,12 +45,14 @@ export default function AdminPOS() {
   });
 
   const handleCheckout = async (
-    method: 'cash' | 'qris' | 'transfer' | 'cod',
+    method: 'cash' | 'qris' | 'transfer' | 'cod' | 'dp',
     paid: number,
-    note: string
+    note: string,
+    customerName?: string
   ) => {
     if (!profile) return;
     const total = getTotal();
+    const isDp = method === 'dp';
 
     try {
       const { data: trx, error: trxError } = await supabase
@@ -61,15 +63,18 @@ export default function AdminPOS() {
           paid_amount: paid,
           change_amount: method === 'cash' ? paid - total : 0,
           payment_method: method,
+          status: isDp ? 'draft_dp' : 'completed',
           note: note || null,
-          status: 'completed',
+          dp_amount: isDp ? paid : 0,
+          customer_name: isDp ? (customerName || null) : null,
+          completed_at: isDp ? null : new Date().toISOString(),
         })
         .select()
         .single();
 
       if (trxError) throw trxError;
 
-      const trxItems = items.map(i => ({
+      const trxItems = items.map((i) => ({
         transaction_id: trx.id,
         product_id: i.product.id,
         product_name: i.product.name,
@@ -77,13 +82,10 @@ export default function AdminPOS() {
         quantity: i.quantity,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('transaction_items')
-        .insert(trxItems);
-
+      const { error: itemsError } = await supabase.from('transaction_items').insert(trxItems);
       if (itemsError) throw itemsError;
 
-      // Kurangi stok pakai fungsi atomic (aman untuk beberapa kasir bersamaan)
+      // Stok tetap berkurang baik transaksi normal maupun DP
       for (const item of items) {
         const { error: stockError } = await supabase.rpc('decrement_stock', {
           p_product_id: item.product.id,
@@ -92,31 +94,40 @@ export default function AdminPOS() {
         if (stockError) throw stockError;
       }
 
-      // Cetak struk otomatis (non-blocking, tidak gagalkan transaksi kalau printer error)
-      const printResult = await printTransactionReceipt(
-        { ...trx, cashier: profile, payment_method: method },
-        trxItems.map((ti, idx) => ({
-          id: `temp-${idx}`,
-          transaction_id: trx.id,
-          product_id: ti.product_id,
-          product_name: ti.product_name,
-          price_at_sale: ti.price_at_sale,
-          quantity: ti.quantity,
-        }))
-      );
+      const trxItemsFull = trxItems.map((ti, idx) => ({
+        id: `temp-${idx}`,
+        transaction_id: trx.id,
+        product_id: ti.product_id,
+        product_name: ti.product_name,
+        price_at_sale: ti.price_at_sale,
+        quantity: ti.quantity,
+      }));
+
+      let printResult;
+      if (isDp) {
+        printResult = await printDpSlip({ ...trx, cashier: profile }, trxItemsFull);
+      } else {
+        printResult = await printTransactionReceipt({ ...trx, cashier: profile }, trxItemsFull);
+      }
 
       await fetchProducts();
       clearCart();
       setShowPayment(false);
       setActiveTab('products');
 
-      Alert.alert(
-        '✅ Transaksi Berhasil',
-        (method === 'cash'
-          ? `Kembalian: Rp ${(paid - total).toLocaleString('id-ID')}\n\n`
-          : '') +
-        (printResult.success ? '🖨️ Struk berhasil dicetak' : `⚠️ ${printResult.message}`)
-      );
+      if (isDp) {
+        Alert.alert(
+          '✅ Draft DP Dibuat',
+          `Sisa pembayaran: Rp ${(total - paid).toLocaleString('id-ID')}\n\n` +
+          (printResult.success ? '🖨️ Slip DP berhasil dicetak' : `⚠️ ${printResult.message}`)
+        );
+      } else {
+        Alert.alert(
+          '✅ Transaksi Berhasil',
+          (method === 'cash' ? `Kembalian: Rp ${(paid - total).toLocaleString('id-ID')}\n\n` : '') +
+          (printResult.success ? '🖨️ Struk berhasil dicetak' : `⚠️ ${printResult.message}`)
+        );
+      }
     } catch (error: any) {
       Alert.alert('Gagal', error.message || 'Terjadi kesalahan');
     }
@@ -176,7 +187,10 @@ export default function AdminPOS() {
               style={[styles.categoryChip, !selectedCategory && styles.categoryChipActive]}
               onPress={() => setSelectedCategory(null)}
             >
-              <Text style={[styles.categoryText, !selectedCategory && styles.categoryTextActive]}>
+              <Text
+                numberOfLines={1}
+                style={[styles.categoryText, !selectedCategory && styles.categoryTextActive]}
+              >
                 Semua
               </Text>
             </TouchableOpacity>
@@ -186,7 +200,10 @@ export default function AdminPOS() {
                 style={[styles.categoryChip, selectedCategory === cat.id && styles.categoryChipActive]}
                 onPress={() => setSelectedCategory(cat.id)}
               >
-                <Text style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}
+                >
                   {cat.name}
                 </Text>
               </TouchableOpacity>
@@ -270,10 +287,29 @@ const styles = StyleSheet.create({
   },
   categoryRow: { paddingHorizontal: Spacing.sm, gap: 8, paddingBottom: 6 },
   categoryChip: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.chip,
-    backgroundColor: Colors.gray[100], borderWidth: 1.5, borderColor: Colors.gray[200],
+    paddingHorizontal: 16,
+    height: 38,
+    minWidth: 60,
+    borderRadius: 19,
+    backgroundColor: Colors.gray[100],
+    borderWidth: 1.5,
+    borderColor: Colors.gray[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
-  categoryChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  categoryText: { fontFamily: 'Poppins_500Medium', fontSize: 13, color: Colors.textSecondary },
-  categoryTextActive: { color: Colors.white, fontFamily: 'Poppins_700Bold' },
+  categoryChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  categoryText: {
+    fontFamily: 'Poppins_500Medium',
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  categoryTextActive: {
+    color: Colors.white,
+    fontFamily: 'Poppins_600SemiBold',
+  },
 });

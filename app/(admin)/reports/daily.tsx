@@ -17,6 +17,7 @@ import { Colors } from '../../../constants/colors';
 import { Radius, Shadow, Spacing, FontSize } from '../../../constants/theme';
 import Badge from '../../../components/shared/Badge';
 import { buildDailyReportText, printPlainText } from '../../../lib/receipt';
+import { useRealtimeTransactions } from '../../../lib/useRealtimeTransactions';
 
 interface DailySummary {
   totalRevenue: number;
@@ -25,6 +26,7 @@ interface DailySummary {
   qrisTotal: number;
   transferTotal: number;
   codTotal: number;
+  dpTotal: number;
   topProducts: { name: string; qty: number; total: number }[];
   hourlyData: { hour: string; total: number; count: number }[];
 }
@@ -60,8 +62,9 @@ export default function DailyReportScreen() {
     const { data: transactions } = await supabase
       .from('transactions')
       .select('*, items:transaction_items(*)')
-      .gte('created_at', startOfDay)
-      .lte('created_at', endOfDay);
+      .eq('status', 'completed')
+      .gte('completed_at', startOfDay)
+      .lte('completed_at', endOfDay);
 
     if (!transactions) {
       setLoading(false);
@@ -69,65 +72,37 @@ export default function DailyReportScreen() {
       return;
     }
 
-    // Hitung ringkasan
     const totalRevenue = transactions.reduce((s, t) => s + t.total, 0);
     const totalTransactions = transactions.length;
-    const cashTotal = transactions
-      .filter(t => t.payment_method === 'cash')
-      .reduce((s, t) => s + t.total, 0);
-    const qrisTotal = transactions
-      .filter(t => t.payment_method === 'qris')
-      .reduce((s, t) => s + t.total, 0);
-    const transferTotal = transactions
-      .filter(t => t.payment_method === 'transfer')
-      .reduce((s, t) => s + t.total, 0);
-    const codTotal = transactions
-      .filter(t => t.payment_method === 'cod')
-      .reduce((s, t) => s + t.total, 0);
+    const cashTotal = transactions.filter(t => t.payment_method === 'cash').reduce((s, t) => s + t.total, 0);
+    const qrisTotal = transactions.filter(t => t.payment_method === 'qris').reduce((s, t) => s + t.total, 0);
+    const transferTotal = transactions.filter(t => t.payment_method === 'transfer').reduce((s, t) => s + t.total, 0);
+    const codTotal = transactions.filter(t => t.payment_method === 'cod').reduce((s, t) => s + t.total, 0);
+    const dpTotal = transactions.filter(t => t.payment_method === 'dp').reduce((s, t) => s + t.total, 0);
 
-    // Top produk
     const productMap: Record<string, { name: string; qty: number; total: number }> = {};
     transactions.forEach(t => {
       t.items?.forEach((item: any) => {
         if (!productMap[item.product_name]) {
-          productMap[item.product_name] = {
-            name: item.product_name,
-            qty: 0,
-            total: 0,
-          };
+          productMap[item.product_name] = { name: item.product_name, qty: 0, total: 0 };
         }
         productMap[item.product_name].qty += item.quantity;
-        productMap[item.product_name].total +=
-          item.price_at_sale * item.quantity;
+        productMap[item.product_name].total += item.price_at_sale * item.quantity;
       });
     });
-    const topProducts = Object.values(productMap)
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 5);
+    const topProducts = Object.values(productMap).sort((a, b) => b.qty - a.qty).slice(0, 5);
 
-    // Data per jam
     const hourMap: Record<string, { total: number; count: number }> = {};
     transactions.forEach(t => {
-      const hour = new Date(t.created_at).getHours();
+      const hour = new Date(t.completed_at ?? t.created_at).getHours();
       const key = `${hour.toString().padStart(2, '0')}:00`;
       if (!hourMap[key]) hourMap[key] = { total: 0, count: 0 };
       hourMap[key].total += t.total;
       hourMap[key].count += 1;
     });
-    const hourlyData = Object.entries(hourMap)
-      .map(([hour, data]) => ({ hour, ...data }))
-      .sort((a, b) => a.hour.localeCompare(b.hour));
+    const hourlyData = Object.entries(hourMap).map(([hour, data]) => ({ hour, ...data })).sort((a, b) => a.hour.localeCompare(b.hour));
 
-    setSummary({
-      totalRevenue,
-      totalTransactions,
-      cashTotal,
-      qrisTotal,
-      transferTotal,
-      codTotal,
-      topProducts,
-      hourlyData,
-    });
+    setSummary({ totalRevenue, totalTransactions, cashTotal, qrisTotal, transferTotal, codTotal, dpTotal, topProducts, hourlyData });
     setLoading(false);
     setRefreshing(false);
   }, [selectedDate]);
@@ -135,6 +110,10 @@ export default function DailyReportScreen() {
   useEffect(() => {
     fetchDailyReport();
   }, [fetchDailyReport]);
+
+  useRealtimeTransactions(() => {
+    fetchDailyReport();
+  });
 
   const changeDate = (days: number) => {
     const date = new Date(selectedDate);
@@ -255,6 +234,12 @@ export default function DailyReportScreen() {
               <Badge label="COD" type="default" />
               <Text style={styles.methodAmount}>
                 Rp {summary?.codTotal.toLocaleString('id-ID') ?? '0'}
+              </Text>
+            </View>
+            <View style={styles.methodCard}>
+              <Badge label="DP" type="warning" />
+              <Text style={styles.methodAmount}>
+                Rp {summary?.dpTotal.toLocaleString('id-ID') ?? '0'}
               </Text>
             </View>
           </View>

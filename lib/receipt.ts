@@ -60,8 +60,18 @@ export function buildReceiptText(
   const methodLabel =
     transaction.payment_method === 'cash' ? 'Tunai' :
     transaction.payment_method === 'qris' ? 'QRIS' :
-    transaction.payment_method === 'cod' ? 'COD' : 'Transfer';
+    transaction.payment_method === 'cod' ? 'COD' :
+    transaction.payment_method === 'dp' ? 'DP' : 'Transfer';
   text += twoColumns('Metode', methodLabel);
+
+  if (transaction.payment_method === 'dp') {
+    const settleLabel =
+      transaction.settlement_method === 'cash' ? 'Tunai' :
+      transaction.settlement_method === 'qris' ? 'QRIS' :
+      transaction.settlement_method === 'cod' ? 'COD' : 'Transfer';
+    text += twoColumns('DP Awal', formatRupiah(transaction.dp_amount ?? 0));
+    text += twoColumns('Dilunasi via', settleLabel);
+  }
 
   const note = (transaction as any).note?.trim();
   if (note) {
@@ -195,4 +205,60 @@ export function buildMonthlyReportText(summary: any, monthLabel: string): string
   text += line('=');
   text += '\n\n\n';
   return text;
+}
+
+export function buildDpSlipText(transaction: Transaction, items: TransactionItem[]): string {
+  const storeInfo = useStoreSettingsStore.getState().settings;
+  let text = '';
+
+  text += center(storeInfo.name) + '\n';
+  text += center('SLIP DP (BELUM LUNAS)') + '\n';
+  text += line('=');
+
+  const date = new Date(transaction.created_at);
+  text += `${date.toLocaleDateString('id-ID')} ${date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}\n`;
+  text += `No: ${transaction.id.slice(-8).toUpperCase()}\n`;
+  if (transaction.customer_name) {
+    text += `Pelanggan: ${transaction.customer_name}\n`;
+  }
+  text += `Kasir: ${transaction.cashier?.full_name ?? '-'}\n`;
+  text += line('-');
+
+  items.forEach((item) => {
+    text += item.product_name.slice(0, LINE_WIDTH) + '\n';
+    const qtyPrice = `${item.quantity} x ${formatRupiah(item.price_at_sale)}`;
+    const subtotal = formatRupiah(item.price_at_sale * item.quantity);
+    text += twoColumns(qtyPrice, subtotal);
+  });
+
+  text += line('-');
+  text += twoColumns('TOTAL', formatRupiah(transaction.total));
+  text += twoColumns('DP Dibayar', formatRupiah(transaction.dp_amount ?? 0));
+  text += twoColumns('Sisa Bayar', formatRupiah(transaction.total - (transaction.dp_amount ?? 0)));
+  text += line('=');
+  text += center('Simpan slip ini sebagai bukti') + '\n';
+  text += center('DP untuk pelunasan') + '\n';
+  text += '\n\n\n';
+
+  return text;
+}
+
+export async function printDpSlip(
+  transaction: Transaction,
+  items: TransactionItem[]
+): Promise<{ success: boolean; message: string }> {
+  const { deviceAddress } = usePrinterStore.getState();
+  if (!deviceAddress) {
+    return { success: false, message: 'Printer belum diatur. Atur dulu di halaman Profil.' };
+  }
+  try {
+    const device = await connectPrinter(deviceAddress);
+    const text = buildDpSlipText(transaction, items);
+    await device.write(text, 'ascii');
+    usePrinterStore.getState().setConnected(true);
+    return { success: true, message: 'Slip DP berhasil dicetak' };
+  } catch (error: any) {
+    usePrinterStore.getState().setConnected(false);
+    return { success: false, message: error.message || 'Gagal mencetak' };
+  }
 }

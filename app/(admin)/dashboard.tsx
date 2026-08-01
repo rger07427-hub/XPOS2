@@ -1,7 +1,9 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useDpStore } from '../../store/useDpStore';
 import { Colors } from '../../constants/colors';
 import { Radius, Shadow, Spacing, FontSize } from '../../constants/theme';
 import AppIcon, { IconName } from '../../components/shared/AppIcon';
@@ -19,6 +21,11 @@ const MENU_ITEMS: { icon: IconName; label: string; path: string; bg: string }[] 
 export default function AdminDashboard() {
   const { profile } = useAuthStore();
   const insets = useSafeAreaInsets();
+  const { drafts, fetchDrafts } = useDpStore();
+
+  useEffect(() => {
+    fetchDrafts();
+  }, []);
 
   return (
     <ScrollView
@@ -33,6 +40,19 @@ export default function AdminDashboard() {
         </View>
         <Text style={styles.subGreeting}>Ada yang bisa dibantu hari ini?</Text>
       </View>
+
+      {drafts.length > 0 && (
+        <TouchableOpacity
+          style={styles.dpWidget}
+          onPress={() => router.push('/(admin)/dp-drafts')}
+        >
+          <View>
+            <Text style={styles.dpWidgetTitle}>📋 Draft DP Menunggu</Text>
+            <Text style={styles.dpWidgetSubtitle}>{drafts.length} transaksi belum lunas</Text>
+          </View>
+          <Text style={styles.dpWidgetArrow}>→</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.menuGrid}>
         {MENU_ITEMS.map((item) => (
@@ -66,6 +86,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
+  dpWidget: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: Colors.softYellow, borderRadius: Radius.card,
+    padding: Spacing.md, marginHorizontal: Spacing.md, marginBottom: Spacing.md,
+  },
+  dpWidgetTitle: { fontFamily: 'Poppins_700Bold', fontSize: 14, color: Colors.textPrimary },
+  dpWidgetSubtitle: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  dpWidgetArrow: { fontSize: 20, color: Colors.textSecondary },
   menuGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

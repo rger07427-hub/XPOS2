@@ -1,50 +1,41 @@
 import { useState } from 'react';
 import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
-  Keyboard,
-  KeyboardAvoidingView,
-  TouchableWithoutFeedback,
-  Platform,
+  View, Text, Modal, TouchableOpacity, TextInput, StyleSheet,
+  Alert, ScrollView, ActivityIndicator, Keyboard,
+  KeyboardAvoidingView, TouchableWithoutFeedback, Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
-import { Radius, Spacing } from '../../constants/theme';
+import { Radius, Shadow, Spacing } from '../../constants/theme';
 import AppIcon, { IconName } from '../shared/AppIcon';
+
+type PayMethod = 'cash' | 'qris' | 'transfer' | 'cod' | 'dp';
 
 interface Props {
   visible: boolean;
   total: number;
   onClose: () => void;
   onConfirm: (
-    method: 'cash' | 'qris' | 'transfer' | 'cod',
+    method: PayMethod,
     paid: number,
-    note: string
+    note: string,
+    customerName?: string
   ) => Promise<void>;
 }
 
-export default function PaymentModal({
-  visible,
-  total,
-  onClose,
-  onConfirm,
-}: Props) {
-  const [method, setMethod] = useState<'cash' | 'qris' | 'transfer' | 'cod'>('cash');
+export default function PaymentModal({ visible, total, onClose, onConfirm }: Props) {
+  const [method, setMethod] = useState<PayMethod>('cash');
   const [cashInput, setCashInput] = useState('');
+  const [dpInput, setDpInput] = useState('');
+  const [customerName, setCustomerName] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const MAX_WORDS = 600;
-  const wordCount = note.trim() === '' ? 0 : note.trim().split(/\s+/).length;
-
   const cashAmount = Number(cashInput) || 0;
   const change = cashAmount - total;
+  const dpAmount = Number(dpInput) || 0;
+  const sisaBayar = total - dpAmount;
+  const MAX_WORDS = 600;
+  const wordCount = note.trim() === '' ? 0 : note.trim().split(/\s+/).length;
 
   const quickCash = [
     total,
@@ -53,6 +44,14 @@ export default function PaymentModal({
     Math.ceil(total / 100000) * 100000,
   ].filter((v, i, arr) => arr.indexOf(v) === i);
 
+  const resetForm = () => {
+    setCashInput('');
+    setDpInput('');
+    setCustomerName('');
+    setNote('');
+    setMethod('cash');
+  };
+
   const handleConfirm = async () => {
     if (method === 'cash') {
       if (!cashInput || cashAmount < total) {
@@ -60,125 +59,140 @@ export default function PaymentModal({
         return;
       }
     }
+    if (method === 'dp') {
+      if (!dpInput || dpAmount <= 0) {
+        Alert.alert('Kosong', 'Masukkan nominal DP');
+        return;
+      }
+      if (dpAmount >= total) {
+        Alert.alert(
+          'Nominal Terlalu Besar',
+          'Nominal DP harus lebih kecil dari total. Kalau pelanggan bayar penuh, gunakan metode Tunai/QRIS/Transfer/COD biasa.'
+        );
+        return;
+      }
+    }
     if (wordCount > MAX_WORDS) {
       Alert.alert('Terlalu Panjang', `Keterangan maksimal ${MAX_WORDS} kata`);
       return;
     }
+
     setLoading(true);
-    await onConfirm(method, method === 'cash' ? cashAmount : total, note.trim());
+    const paidValue = method === 'cash' ? cashAmount : method === 'dp' ? dpAmount : total;
+    await onConfirm(method, paidValue, note.trim(), method === 'dp' ? customerName.trim() : undefined);
     setLoading(false);
-    setCashInput('');
-    setNote('');
-    setMethod('cash');
+    resetForm();
   };
 
-  const methods: { key: 'cash' | 'qris' | 'transfer' | 'cod'; label: string; icon: IconName }[] = [
+  const methods: { key: PayMethod; label: string; icon: IconName }[] = [
     { key: 'cash', label: 'Tunai', icon: 'cash' },
     { key: 'qris', label: 'QRIS', icon: 'qris' },
     { key: 'transfer', label: 'Transfer', icon: 'transfer' },
     { key: 'cod', label: 'COD', icon: 'cod' },
+    { key: 'dp', label: 'DP', icon: 'cash' },
   ];
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.overlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={styles.sheet}>
-                <ScrollView
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                >
+                <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                   <View style={styles.handle} />
-
                   <Text style={styles.title}>Pembayaran</Text>
 
-                  {/* Total */}
                   <View style={styles.totalBox}>
                     <Text style={styles.totalLabel}>Total Belanja</Text>
-                    <Text style={styles.totalAmount}>
-                      Rp {total.toLocaleString('id-ID')}
-                    </Text>
+                    <Text style={styles.totalAmount}>Rp {total.toLocaleString('id-ID')}</Text>
                   </View>
 
-                  {/* Metode Bayar */}
                   <Text style={styles.sectionLabel}>Metode Pembayaran</Text>
                   <View style={styles.methodRow}>
-                    {methods.map(m => (
+                    {methods.map((m) => (
                       <TouchableOpacity
                         key={m.key}
-                        style={[
-                          styles.methodBtn,
-                          method === m.key && styles.methodBtnActive,
-                        ]}
+                        style={[styles.methodBtn, method === m.key && styles.methodBtnActive]}
                         onPress={() => setMethod(m.key)}
                       >
-                        <AppIcon name={m.icon} size={22} color={method === m.key ? Colors.primary : Colors.gray[400]} />
-                        <Text style={[
-                          styles.methodLabel,
-                          method === m.key && styles.methodLabelActive,
-                        ]}>
+                        <AppIcon
+                          name={m.icon}
+                          size={20}
+                          color={method === m.key ? Colors.primary : Colors.gray[400]}
+                        />
+                        <Text style={[styles.methodLabel, method === m.key && styles.methodLabelActive]}>
                           {m.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  {/* Input Cash */}
                   {method === 'cash' && (
                     <View>
                       <Text style={styles.sectionLabel}>Uang Diterima</Text>
                       <TextInput
-                        style={styles.cashInput}
+                        style={styles.amountInput}
                         placeholder="Masukkan nominal..."
                         placeholderTextColor={Colors.gray[400]}
                         keyboardType="numeric"
                         value={cashInput}
                         onChangeText={setCashInput}
                       />
-
-                      {/* Quick Amount */}
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.quickList}
-                      >
-                        {quickCash.map(amount => (
-                          <TouchableOpacity
-                            key={amount}
-                            style={styles.quickBtn}
-                            onPress={() => setCashInput(String(amount))}
-                          >
-                            <Text style={styles.quickText}>
-                              Rp {amount.toLocaleString('id-ID')}
-                            </Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickList}>
+                        {quickCash.map((amount) => (
+                          <TouchableOpacity key={amount} style={styles.quickBtn} onPress={() => setCashInput(String(amount))}>
+                            <Text style={styles.quickText}>Rp {amount.toLocaleString('id-ID')}</Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
-
-                      {/* Kembalian */}
                       {cashAmount >= total && (
                         <View style={styles.changeBox}>
                           <Text style={styles.changeLabel}>Kembalian</Text>
-                          <Text style={styles.changeAmount}>
-                            Rp {change.toLocaleString('id-ID')}
-                          </Text>
+                          <Text style={styles.changeAmount}>Rp {change.toLocaleString('id-ID')}</Text>
                         </View>
                       )}
                     </View>
                   )}
 
-                  {/* QRIS / Transfer / COD info */}
-                  {method !== 'cash' && (
+                  {method === 'dp' && (
+                    <View>
+                      <Text style={styles.sectionLabel}>Nama Pelanggan (opsional)</Text>
+                      <TextInput
+                        style={styles.amountInput}
+                        placeholder="Contoh: Budi"
+                        placeholderTextColor={Colors.gray[400]}
+                        value={customerName}
+                        onChangeText={setCustomerName}
+                      />
+                      <Text style={styles.sectionLabel}>Nominal DP</Text>
+                      <TextInput
+                        style={styles.amountInput}
+                        placeholder="Masukkan nominal DP..."
+                        placeholderTextColor={Colors.gray[400]}
+                        keyboardType="numeric"
+                        value={dpInput}
+                        onChangeText={setDpInput}
+                      />
+                      {dpAmount > 0 && (
+                        <View style={styles.changeBox}>
+                          <Text style={styles.changeLabel}>Sisa Pembayaran</Text>
+                          <Text style={styles.changeAmount}>
+                            Rp {(dpAmount < total ? sisaBayar : 0).toLocaleString('id-ID')}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.infoBox}>
+                        <Text style={styles.infoText}>
+                          📝 Transaksi akan masuk ke Draft DP, stok langsung berkurang,
+                          dan slip DP akan dicetak. Transaksi baru masuk Riwayat &
+                          Laporan setelah dilunasi.
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {(method === 'qris' || method === 'transfer' || method === 'cod') && (
                     <View style={styles.infoBox}>
                       <Text style={styles.infoText}>
                         {method === 'qris'
@@ -190,7 +204,6 @@ export default function PaymentModal({
                     </View>
                   )}
 
-                  {/* Keterangan (opsional) */}
                   <Text style={styles.sectionLabel}>Keterangan (opsional)</Text>
                   <TextInput
                     style={styles.noteInput}
@@ -201,20 +214,12 @@ export default function PaymentModal({
                     multiline
                     numberOfLines={4}
                   />
-                  <Text style={[
-                    styles.wordCount,
-                    wordCount > MAX_WORDS && styles.wordCountOver,
-                  ]}>
+                  <Text style={[styles.wordCount, wordCount > MAX_WORDS && styles.wordCountOver]}>
                     {wordCount}/{MAX_WORDS} kata
                   </Text>
 
-                  {/* Tombol */}
                   <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.cancelBtn}
-                      onPress={onClose}
-                      disabled={loading}
-                    >
+                    <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={loading}>
                       <Text style={styles.cancelText}>Batal</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -225,7 +230,9 @@ export default function PaymentModal({
                       {loading ? (
                         <ActivityIndicator color={Colors.white} />
                       ) : (
-                        <Text style={styles.confirmText}>Konfirmasi Bayar</Text>
+                        <Text style={styles.confirmText}>
+                          {method === 'dp' ? 'Buat Draft DP' : 'Konfirmasi Bayar'}
+                        </Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -240,201 +247,56 @@ export default function PaymentModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.card,
-    borderTopRightRadius: Radius.card,
-    padding: Spacing.lg,
-    paddingBottom: 32,
-    maxHeight: '85%',
+    backgroundColor: Colors.surface, borderTopLeftRadius: Radius.card, borderTopRightRadius: Radius.card,
+    padding: Spacing.lg, paddingBottom: 32, maxHeight: '88%',
   },
-  noteInput: {
-    borderWidth: 1.5,
-    borderColor: Colors.gray[200],
-    borderRadius: Radius.button,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    fontFamily: 'Poppins_400Regular',
-    fontSize: 14,
-    color: Colors.textPrimary,
-    backgroundColor: Colors.gray[50],
-    minHeight: 90,
-    textAlignVertical: 'top',
-    marginBottom: 4,
-  },
-  wordCount: {
-    fontFamily: 'Poppins_400Regular',
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textAlign: 'right',
-    marginBottom: Spacing.md,
-  },
-  wordCountOver: { color: Colors.danger, fontFamily: 'Poppins_600SemiBold' },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: Colors.gray[300],
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.gray[800],
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  totalBox: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  totalLabel: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 4,
-  },
-  totalAmount: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.white,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.gray[700],
-    marginBottom: 10,
-  },
-  methodRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
+  handle: { width: 40, height: 4, backgroundColor: Colors.gray[300], borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.md },
+  title: { fontFamily: 'Poppins_700Bold', fontSize: 20, color: Colors.textPrimary, marginBottom: Spacing.md, textAlign: 'center' },
+  totalBox: { backgroundColor: Colors.primary, borderRadius: Radius.button, padding: Spacing.md, alignItems: 'center', marginBottom: Spacing.lg },
+  totalLabel: { fontFamily: 'Poppins_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.85)', marginBottom: 4 },
+  totalAmount: { fontFamily: 'Poppins_700Bold', fontSize: 28, color: Colors.white },
+  sectionLabel: { fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.textPrimary, marginBottom: Spacing.sm },
+  methodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
   methodBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.gray[200],
-    backgroundColor: Colors.gray[50],
+    flexBasis: '30%', flexGrow: 1, alignItems: 'center', paddingVertical: Spacing.sm,
+    borderRadius: Radius.button, borderWidth: 1.5, borderColor: Colors.gray[200], backgroundColor: Colors.gray[50], gap: 4,
   },
-  methodBtnActive: {
-    borderColor: Colors.primary,
-    backgroundColor: '#eef2ff',
+  methodBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.softBlue },
+  methodLabel: { fontFamily: 'Poppins_500Medium', fontSize: 12, color: Colors.textSecondary },
+  methodLabelActive: { color: Colors.primary, fontFamily: 'Poppins_700Bold' },
+  amountInput: {
+    borderWidth: 1.5, borderColor: Colors.gray[200], borderRadius: Radius.button,
+    paddingHorizontal: Spacing.md, paddingVertical: 12, fontFamily: 'Poppins_600SemiBold',
+    fontSize: 16, color: Colors.textPrimary, backgroundColor: Colors.gray[50], marginBottom: Spacing.sm,
   },
-  methodIcon: {
-    fontSize: 22,
-    marginBottom: 4,
-  },
-  methodLabel: {
-    fontSize: 13,
-    color: Colors.gray[600],
-    fontWeight: '500',
-  },
-  methodLabelActive: {
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  cashInput: {
-    borderWidth: 1.5,
-    borderColor: Colors.gray[200],
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 18,
-    color: Colors.gray[800],
-    backgroundColor: Colors.gray[50],
-    marginBottom: 12,
-  },
-  quickList: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  quickBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.gray[100],
-    borderWidth: 1,
-    borderColor: Colors.gray[200],
-  },
-  quickText: {
-    fontSize: 13,
-    color: Colors.gray[700],
-    fontWeight: '500',
-  },
+  quickList: { gap: Spacing.sm, marginBottom: Spacing.sm },
+  quickBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.chip, backgroundColor: Colors.softBlue, borderWidth: 1, borderColor: Colors.gray[200] },
+  quickText: { fontFamily: 'Poppins_500Medium', fontSize: 13, color: Colors.primary },
   changeBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#dcfce7',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: Colors.softGreen, borderRadius: Radius.button, padding: Spacing.md, marginBottom: Spacing.sm,
   },
-  changeLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  changeAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#166534',
-  },
+  changeLabel: { fontFamily: 'Poppins_600SemiBold', fontSize: 15, color: '#1B5E20' },
+  changeAmount: { fontFamily: 'Poppins_700Bold', fontSize: 18, color: '#1B5E20' },
   infoBox: {
-    backgroundColor: Colors.gray[50],
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.gray[200],
+    backgroundColor: Colors.gray[50], borderRadius: Radius.button, padding: Spacing.md,
+    marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.gray[200],
   },
-  infoText: {
-    fontSize: 13,
-    color: Colors.gray[600],
-    lineHeight: 20,
+  infoText: { fontFamily: 'Poppins_400Regular', fontSize: 13, color: Colors.textSecondary, lineHeight: 20 },
+  noteInput: {
+    borderWidth: 1.5, borderColor: Colors.gray[200], borderRadius: Radius.button,
+    paddingHorizontal: Spacing.md, paddingVertical: 12, fontFamily: 'Poppins_400Regular',
+    fontSize: 14, color: Colors.textPrimary, backgroundColor: Colors.gray[50],
+    minHeight: 90, textAlignVertical: 'top', marginBottom: 4,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.gray[300],
-    alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: 15,
-    color: Colors.gray[600],
-    fontWeight: '600',
-  },
-  confirmBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: Colors.success,
-    alignItems: 'center',
-  },
-  confirmDisabled: {
-    backgroundColor: Colors.gray[400],
-  },
-  confirmText: {
-    fontSize: 15,
-    color: Colors.white,
-    fontWeight: 'bold',
-  },
+  wordCount: { fontFamily: 'Poppins_400Regular', fontSize: 11, color: Colors.textSecondary, textAlign: 'right', marginBottom: Spacing.md },
+  wordCountOver: { color: Colors.danger, fontFamily: 'Poppins_600SemiBold' },
+  buttonRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
+  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: Radius.button, borderWidth: 1.5, borderColor: Colors.gray[300], alignItems: 'center' },
+  cancelText: { fontFamily: 'Poppins_600SemiBold', fontSize: 15, color: Colors.textSecondary },
+  confirmBtn: { flex: 2, paddingVertical: 14, borderRadius: Radius.button, backgroundColor: Colors.primary, alignItems: 'center' },
+  confirmDisabled: { backgroundColor: Colors.gray[400] },
+  confirmText: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: Colors.white },
 });

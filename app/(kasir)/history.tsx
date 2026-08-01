@@ -66,6 +66,7 @@ export default function HistoryScreen() {
     const { data, error } = await supabase
       .from('transactions')
       .select('*, cashier:profiles(full_name), items:transaction_items(*)')
+      .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(100);
 

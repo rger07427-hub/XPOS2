@@ -69,6 +69,7 @@ export default function AdminLayout() {
         <Tabs.Screen name="users" options={{ href: null }} />
         <Tabs.Screen name="printer-settings" options={{ href: null }} />
         <Tabs.Screen name="store-settings" options={{ href: null }} />
+        <Tabs.Screen name="dp-drafts" options={{ href: null }} />
       </Tabs>
 
       <AdminDrawer />

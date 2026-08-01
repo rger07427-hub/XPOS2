@@ -33,9 +33,13 @@ export interface Transaction {
   total: number;
   paid_amount: number | null;
   change_amount: number | null;
-  payment_method: 'cash' | 'qris' | 'transfer' | 'cod';
-  status: string;
+  payment_method: 'cash' | 'qris' | 'transfer' | 'cod' | 'dp';
+  status: 'completed' | 'draft_dp';
   note?: string | null;
+  dp_amount?: number;
+  customer_name?: string | null;
+  settlement_method?: 'cash' | 'qris' | 'transfer' | 'cod' | null;
+  completed_at?: string | null;
   created_at: string;
   cashier?: Profile;
   items?: TransactionItem[];

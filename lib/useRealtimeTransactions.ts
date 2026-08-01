@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
-export function useRealtimeTransactions(onNewTransaction: () => void) {
+export function useRealtimeTransactions(onChange: () => void) {
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -10,8 +10,8 @@ export function useRealtimeTransactions(onNewTransaction: () => void) {
       .channel(`transactions-realtime-${Date.now()}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'transactions' },
-        () => onNewTransaction()
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => onChange()
       )
       .subscribe();
 
