@@ -14,24 +14,15 @@ export default function RootLayout() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          useStoreSettingsStore.getState().fetchSettings();
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
           await loadProfile();
+          subscribeRealtime();
+          useStoreSettingsStore.getState().fetchSettings();
           const profile = useAuthStore.getState().profile;
-          if (profile) {
-            subscribeRealtime();
-            if (profile.role === 'admin') {
-              router.replace('/(admin)/dashboard');
-            } else if (profile.role === 'kasir') {
-              router.replace('/(kasir)/pos');
-            }
-          } else {
-            Alert.alert(
-              'Akses Ditolak',
-              'Profil pengguna tidak ditemukan di database profiles. Silakan hubungi Administrator untuk mendaftarkan akun Anda.',
-              [{ text: 'OK' }]
-            );
-            await supabase.auth.signOut();
+          if (profile?.role === 'admin') {
+            router.replace('/(admin)/dashboard');
+          } else if (profile?.role === 'kasir') {
+            router.replace('/(kasir)/pos');
           }
         } else if (event === 'SIGNED_OUT') {
           unsubscribeRealtime();

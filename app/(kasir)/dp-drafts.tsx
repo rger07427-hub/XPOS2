@@ -38,12 +38,13 @@ export default function DpDraftsScreen() {
           paid_amount: selected.total,
           change_amount: method === 'cash' ? paid - sisa : 0,
           completed_at: new Date().toISOString(),
+          cashier_id: profile?.id,
         })
         .eq('id', selected.id);
 
       if (error) throw error;
 
-      const updatedTrx = { ...selected, settlement_method: method, status: 'completed' as const };
+      const updatedTrx = { ...selected, settlement_method: method, status: 'completed' as const, cashier: profile ?? selected.cashier };
       const printResult = await printTransactionReceipt(updatedTrx, selected.items ?? []);
 
       setSelected(null);
