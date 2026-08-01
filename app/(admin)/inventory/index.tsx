@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -74,7 +75,11 @@ export default function InventoryScreen() {
       </View>
 
       {/* Filter Kategori */}
-      <View style={styles.categoryContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryContainer}
+      >
         {categories.map(cat => (
           <TouchableOpacity
             key={cat}
@@ -88,17 +93,20 @@ export default function InventoryScreen() {
               cat === 'Semua' ? null : cat
             )}
           >
-            <Text style={[
-              styles.categoryText,
-              (selectedCategory === cat ||
-                (!selectedCategory && cat === 'Semua')) &&
-              styles.categoryTextActive,
-            ]}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.categoryText,
+                (selectedCategory === cat ||
+                  (!selectedCategory && cat === 'Semua')) &&
+                styles.categoryTextActive,
+              ]}
+            >
               {cat}
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* List Produk */}
       {loading ? (
@@ -160,7 +168,7 @@ const styles = StyleSheet.create({
   },
   categoryContainer: {
     flexDirection: 'row', paddingHorizontal: Spacing.md, paddingVertical: 10, gap: 8,
-    backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.gray[100], flexWrap: 'wrap',
+    backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.gray[100],
   },
   categoryChip: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.chip,
