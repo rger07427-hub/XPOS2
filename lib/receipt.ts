@@ -49,7 +49,8 @@ export function buildReceiptText(
 
   items.forEach((item) => {
     text += item.product_name.slice(0, LINE_WIDTH) + '\n';
-    const qtyPrice = `${item.quantity} x ${formatRupiah(item.price_at_sale)}`;
+    const qtyDisplay = Number(item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(2));
+    const qtyPrice = `${qtyDisplay} x ${formatRupiah(item.price_at_sale)}`;
     const subtotal = formatRupiah(item.price_at_sale * item.quantity);
     text += twoColumns(qtyPrice, subtotal);
   });
@@ -226,7 +227,8 @@ export function buildDpSlipText(transaction: Transaction, items: TransactionItem
 
   items.forEach((item) => {
     text += item.product_name.slice(0, LINE_WIDTH) + '\n';
-    const qtyPrice = `${item.quantity} x ${formatRupiah(item.price_at_sale)}`;
+    const qtyDisplay = Number(item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(2));
+    const qtyPrice = `${qtyDisplay} x ${formatRupiah(item.price_at_sale)}`;
     const subtotal = formatRupiah(item.price_at_sale * item.quantity);
     text += twoColumns(qtyPrice, subtotal);
   });

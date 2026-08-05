@@ -95,7 +95,8 @@ export default function EditProductScreen() {
       newErrors.name = 'Nama produk harus diisi';
     if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0)
       newErrors.price = 'Harga harus diisi dan lebih dari 0';
-    if (!form.stock || isNaN(Number(form.stock)) || Number(form.stock) < 0)
+    const normalizedStock = form.stock.replace(',', '.');
+    if (!form.stock || isNaN(Number(normalizedStock)) || Number(normalizedStock) < 0)
       newErrors.stock = 'Stok tidak boleh kurang dari 0';
     if (!form.unit.trim())
       newErrors.unit = 'Satuan harus diisi';
@@ -116,7 +117,7 @@ export default function EditProductScreen() {
         .update({
           name: form.name.trim(),
           price: Number(form.price),
-          stock: Number(form.stock),
+          stock: Number(form.stock.replace(',', '.')),
           unit: form.unit.trim(),
           category_id: form.category_id,
           is_active: form.is_active,
@@ -254,7 +255,7 @@ export default function EditProductScreen() {
             placeholder="contoh: 50"
             value={form.stock}
             onChangeText={v => setForm(f => ({ ...f, stock: v }))}
-            keyboardType="numeric"
+            keyboardType="decimal-pad"
             error={errors.stock}
           />
           <View style={styles.stockNote}>

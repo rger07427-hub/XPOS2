@@ -20,13 +20,15 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove, on
   }, [item.quantity]);
 
   const commitQty = () => {
-    const num = parseInt(qtyText, 10);
+    const normalized = qtyText.replace(',', '.');
+    const num = parseFloat(normalized);
     if (isNaN(num) || num <= 0) {
       onRemove();
       return;
     }
+    const rounded = Math.round(num * 100) / 100;
     const maxStock = item.product.stock ?? 0;
-    const finalQty = maxStock > 0 ? Math.min(num, maxStock) : num;
+    const finalQty = maxStock > 0 ? Math.min(rounded, maxStock) : rounded;
     onSetQty(finalQty);
     setQtyText(String(finalQty));
   };
@@ -50,7 +52,7 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove, on
           onChangeText={setQtyText}
           onBlur={commitQty}
           onSubmitEditing={commitQty}
-          keyboardType="number-pad"
+          keyboardType="decimal-pad"
           selectTextOnFocus
         />
         <TouchableOpacity style={styles.qtyBtn} onPress={onIncrease}>
